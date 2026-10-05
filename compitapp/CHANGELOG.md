@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6
+
+- **Chat ID Telegram per ogni studente**: nella lista `studenti` ogni figlio ha ora il campo facoltativo `chat_id`. Ogni ragazzo riceve solo le proprie notifiche (compiti, riepilogo serale, bacheca, promemoria), mai voti, assenze o note.
+- **Corretto l'invio allo studente**: prima il chat ID dello studente veniva mostrato in configurazione ma i messaggi partivano solo verso i genitori. Ora arrivano anche allo studente, come descritto nel README.
+- Il vecchio campo `studente_chat_id` continua a funzionare, ma solo se è configurato **un solo** studente.
+- La pagina Configurazione mostra nome e chat ID dello studente selezionato.
+
 ## 1.0.5
 
 - **Voti con la virgola** (es. 7,5): ora il colore (verde/giallo/rosso) viene calcolato correttamente, prima venivano sempre segnati come insufficienti.

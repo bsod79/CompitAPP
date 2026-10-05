@@ -192,7 +192,8 @@ def configurazione():
     # Parsing chat_ids
     raw = os.environ.get('TELEGRAM_CHAT_IDS','')
     ids = [x.strip() for x in raw.replace('\n',',').split(',') if x.strip()]
-    studente_chat = os.environ.get('STUDENTE_CHAT_ID','').strip()
+    from notifier import get_studente_chat_id
+    studente_chat = get_studente_chat_id(sel)
     
     # Trova credenziali studente selezionato
     cred = next((s for s in studenti if s['nome'] == sel), {})
@@ -205,7 +206,7 @@ def configurazione():
         'genitore1': os.environ.get('GENITORE1_CHAT_ID', ''),
         'genitore2_nome': os.environ.get('GENITORE2_NOME', 'Genitore 2'),
         'genitore2': os.environ.get('GENITORE2_CHAT_ID', ''),
-        'studente_nome': os.environ.get('STUDENTE_NOME', 'Studente'),
+        'studente_nome': (sel.split()[0] if sel else os.environ.get('STUDENTE_NOME', 'Studente')),
         'studente_chat_id': studente_chat,
         'totale_destinatari': len(ids) + (1 if studente_chat else 0),
         'soglia_voto': os.environ.get('SOGLIA_VOTO', 7),
@@ -251,8 +252,8 @@ def api_test_broadcast():
     from notifier import send_telegram
     ok = send_telegram("🧪 <b>CompitAPP — Test broadcast</b>\n✅ Tutti i destinatari ricevono correttamente!")
     ids = [x.strip() for x in os.environ.get('TELEGRAM_CHAT_IDS','').replace('\n',',').split(',') if x.strip()]
-    studente_chat = os.environ.get('STUDENTE_CHAT_ID','').strip()
-    n = len(ids) + (1 if studente_chat else 0)
+    from notifier import get_studente_chat_id
+    n = len(ids) + sum(1 for s in get_studenti() if get_studente_chat_id(s['nome']))
     return jsonify({'ok': ok, 'n': n})
 
 @app.route('/api/reset-db', methods=['POST'])

@@ -148,7 +148,8 @@ genitore1_chat_id: ""
 genitore2_nome: "Lucia"
 genitore2_chat_id: ""
 
-# Studente (facoltativo, NON riceve voti/assenze/note)
+# Studente singolo (facoltativo, vecchio metodo: vale solo se hai UN figlio).
+# Con più figli usa il campo `chat_id` dentro ogni studente (vedi sotto).
 studente_nome: "Luca"
 studente_chat_id: ""
 
@@ -167,7 +168,11 @@ studenti:
     codice_scuola: "SC12345"      # codice scuola (dalla segreteria o dall'app DiDUP)
     username: "l.rossi"           # username DiDUP
     password: "la_tua_password"
+    chat_id: ""                   # facoltativo: Chat ID Telegram di questo ragazzo/a
+                                  # (riceve compiti, riepilogo, bacheca e promemoria; mai i voti)
 ```
+
+Con più figli aggiungi una voce per ciascuno, ognuno con il proprio `chat_id`: ogni ragazzo riceve solo le sue notifiche.
 
 > Il campo `anno_scolastico` presente nella configurazione non viene più usato: l'anno è calcolato in automatico.
 

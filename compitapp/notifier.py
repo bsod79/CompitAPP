@@ -1,4 +1,5 @@
 import os
+import json
 import html
 import requests
 from datetime import date, datetime, timedelta
@@ -58,7 +59,7 @@ def notifica_nuovi_compiti(nome, compiti_nuovi):
         msg = f"📚 <b>{nome} — Compiti per {_data_ita(data)}</b>\n\n"
         for materia, testo in zip(info['materie'], info['compiti']):
             msg += f"📖 <b>{materia}</b>\n{testo}\n\n"
-        send_telegram(msg.strip())
+        send_telegram_compiti(msg.strip(), nome)
 
 def notifica_nuovo_voto(nome, materia, voto, descrizione=''):
     try:
@@ -97,7 +98,7 @@ def notifica_bacheca(nome, titolo, testo, mittente=''):
         msg += f"👤 {mittente}\n"
     if testo:
         msg += f"\n<i>{testo[:400]}</i>"
-    send_telegram(msg)
+    send_telegram_compiti(msg, nome)
 
 def notifica_promemoria(nome, data, docente, testo):
     msg = f"📋 <b>Promemoria — {nome}</b>\n\n"
@@ -105,7 +106,7 @@ def notifica_promemoria(nome, data, docente, testo):
     if docente:
         msg += f"👤 {docente}\n"
     msg += f"\n{testo[:300]}"
-    send_telegram(msg)
+    send_telegram_compiti(msg, nome)
 
 def _opt_bool(chiave, default):
     v = os.environ.get(chiave)
@@ -155,7 +156,7 @@ def reminder_compiti_domani(nome, compiti_domani, domani_scuola=True, orario_dom
         msg += f"\n\n🗓️ <b>Orario di {_data_ita(domani).split()[0].lower()}</b>\n"
         for ora, materia in orario_domani:
             msg += f"{ora}ª {emoji_materia(materia)} {materia}\n"
-    send_telegram(msg.strip())
+    send_telegram_compiti(msg.strip(), nome)
 
 def sync_sensori_ha(nome, stats):
     if not SUPERVISOR_TOKEN:
@@ -193,14 +194,34 @@ def send_telegram_to(chat_id, messaggio):
         print(f"[TELEGRAM] Errore send_to {chat_id}: {e}")
         return False
 
-def get_studente_chat_id():
-    """Chat ID separato per lo studente (non riceve i voti)"""
-    return os.environ.get('STUDENTE_CHAT_ID', '').strip()
+def _studenti_config():
+    try:
+        return [s for s in json.loads(os.environ.get('STUDENTI', '[]') or '[]') if s.get('nome')]
+    except Exception:
+        return []
 
-def send_telegram_compiti(messaggio):
-    """Invia a tutti + studente"""
+def get_studente_chat_id(nome=None):
+    """Chat ID dello studente (non riceve i voti).
+
+    Ogni studente può avere il proprio `chat_id` nella lista `studenti`.
+    Il vecchio campo `studente_chat_id` vale solo se c'è un unico studente.
+    """
+    studenti = _studenti_config()
+    if nome:
+        for s in studenti:
+            if s.get('nome') == nome:
+                cid = str(s.get('chat_id', '') or '').strip()
+                if cid:
+                    return cid
+    legacy = os.environ.get('STUDENTE_CHAT_ID', '').strip()
+    if legacy and len(studenti) <= 1:
+        return legacy
+    return ''
+
+def send_telegram_compiti(messaggio, nome=None):
+    """Invia ai genitori + allo studente indicato (se ha un chat_id)"""
     send_telegram(messaggio)
-    studente_id = get_studente_chat_id()
+    studente_id = get_studente_chat_id(nome)
     if studente_id and studente_id not in get_chat_ids():
         send_telegram_to(studente_id, messaggio)
 
