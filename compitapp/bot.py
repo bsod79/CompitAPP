@@ -86,84 +86,84 @@ def _cmd_help(chat_id):
         f"<i>Le notifiche arrivano automaticamente quando il prof inserisce compiti o voti su DiDUP.</i>"
     )
 
+def _studenti_bot():
+    """Nomi degli studenti configurati (come salvati nel database)."""
+    try:
+        from argo_client import get_studenti
+        nomi = [st.get('nome', 'default') for st in get_studenti()]
+    except Exception:
+        nomi = []
+    return nomi or ['default']
+
 def _cmd_resoconto(chat_id):
     try:
         from models import get_db
         conn = get_db()
-        oggi = date.today().strftime('%Y-%m-%d')
-        domani = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
-        dopodomani = (date.today() + timedelta(days=7)).strftime('%Y-%m-%d')
-
-        # Compiti oggi
-        c_oggi = conn.execute(
-            'SELECT materia, testo FROM compiti WHERE data=? ORDER BY materia', (oggi,)
-        ).fetchall()
-
-        # Compiti domani
-        c_domani = conn.execute(
-            'SELECT materia, testo FROM compiti WHERE data=? ORDER BY materia', (domani,)
-        ).fetchall()
-
-        # Prossimi 7 giorni
-        c_prossimi = conn.execute(
-            'SELECT data, materia, testo FROM compiti WHERE data > ? AND data <= ? ORDER BY data, materia',
-            (domani, dopodomani)
-        ).fetchall()
-
-        # Ultimi 3 voti
-        ultimi_voti = conn.execute(
-            'SELECT materia, voto, data FROM voti ORDER BY data DESC, id DESC LIMIT 3'
-        ).fetchall()
-
+        nomi = _studenti_bot()
+        for nome in nomi:
+            send_message(chat_id, _testo_resoconto(conn, nome, mostra_nome=len(nomi) > 1))
         conn.close()
-
-        msg = f"📋 <b>Resoconto CompitAPP</b>\n<i>{data_ita(date.today())}</i>\n\n"
-
-        # Oggi
-        msg += f"📖 <b>Compiti per oggi</b>\n"
-        if c_oggi:
-            for c in c_oggi:
-                emoji = EMOJI_MATERIE.get(c['materia'], '📚')
-                msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:80]}{'...' if len(c['testo'])>80 else ''}\n"
-        else:
-            msg += "✅ Nessun compito!\n"
-
-        msg += f"\n🌙 <b>Compiti per domani</b>\n"
-        if c_domani:
-            for c in c_domani:
-                emoji = EMOJI_MATERIE.get(c['materia'], '📚')
-                msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:80]}{'...' if len(c['testo'])>80 else ''}\n"
-        else:
-            msg += "✅ Nessun compito!\n"
-
-        # Prossimi giorni
-        if c_prossimi:
-            msg += f"\n📅 <b>Prossimi giorni</b>\n"
-            data_prec = ''
-            for c in c_prossimi:
-                if c['data'] != data_prec:
-                    msg += f"\n<i>{data_ita(c['data'])}</i>\n"
-                    data_prec = c['data']
-                emoji = EMOJI_MATERIE.get(c['materia'], '📚')
-                msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:60]}{'...' if len(c['testo'])>60 else ''}\n"
-
-        # Ultimi voti
-        if ultimi_voti:
-            msg += f"\n⭐ <b>Ultimi voti</b>\n"
-            for v in ultimi_voti:
-                try:
-                    vn = float(str(v['voto']).replace(',','.'))
-                    soglia = float(os.environ.get('SOGLIA_VOTO', 7))
-                    em = '🟢' if vn >= soglia else ('🟡' if vn >= soglia-1 else '🔴')
-                except:
-                    em = '📊'
-                msg += f"{em} <b>{v['materia']}</b>: {v['voto']} <i>({v['data']})</i>\n"
-
-        send_message(chat_id, msg)
-
     except Exception as e:
         print(f"[BOT] Errore resoconto: {e}")
         send_message(chat_id, "❌ Errore nel recupero del resoconto.")
+
+def _testo_resoconto(conn, nome, mostra_nome=False):
+    oggi = date.today().strftime('%Y-%m-%d')
+    domani = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+    fra_7_giorni = (date.today() + timedelta(days=7)).strftime('%Y-%m-%d')
+
+    c_oggi = conn.execute(
+        'SELECT materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, oggi)).fetchall()
+    c_domani = conn.execute(
+        'SELECT materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, domani)).fetchall()
+    c_prossimi = conn.execute(
+        'SELECT data, materia, testo FROM compiti WHERE studente=? AND data > ? AND data <= ? ORDER BY data, materia',
+        (nome, domani, fra_7_giorni)).fetchall()
+    ultimi_voti = conn.execute(
+        'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 3', (nome,)).fetchall()
+
+    msg = f"📋 <b>Resoconto CompitAPP</b>\n<i>{data_ita(date.today())}</i>\n"
+    if mostra_nome:
+        msg += f"🎒 <b>{nome}</b>\n"
+    msg += "\n"
+
+    msg += f"📖 <b>Compiti per oggi</b>\n"
+    if c_oggi:
+        for c in c_oggi:
+            emoji = EMOJI_MATERIE.get(c['materia'], '📚')
+            msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:80]}{'...' if len(c['testo'])>80 else ''}\n"
+    else:
+        msg += "✅ Nessun compito!\n"
+
+    msg += f"\n🌙 <b>Compiti per domani</b>\n"
+    if c_domani:
+        for c in c_domani:
+            emoji = EMOJI_MATERIE.get(c['materia'], '📚')
+            msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:80]}{'...' if len(c['testo'])>80 else ''}\n"
+    else:
+        msg += "✅ Nessun compito!\n"
+
+    if c_prossimi:
+        msg += f"\n📅 <b>Prossimi giorni</b>\n"
+        data_prec = ''
+        for c in c_prossimi:
+            if c['data'] != data_prec:
+                msg += f"\n<i>{data_ita(c['data'])}</i>\n"
+                data_prec = c['data']
+            emoji = EMOJI_MATERIE.get(c['materia'], '📚')
+            msg += f"{emoji} <b>{c['materia']}</b>: {c['testo'][:60]}{'...' if len(c['testo'])>60 else ''}\n"
+
+    if ultimi_voti:
+        msg += f"\n⭐ <b>Ultimi voti</b>\n"
+        for v in ultimi_voti:
+            try:
+                vn = float(str(v['voto']).replace(',','.'))
+                soglia = float(os.environ.get('SOGLIA_VOTO', 7))
+                em = '🟢' if vn >= soglia else ('🟡' if vn >= soglia-1 else '🔴')
+            except Exception:
+                em = '📊'
+            msg += f"{em} <b>{v['materia']}</b>: {v['voto']} <i>({v['data']})</i>\n"
+    return msg
 
 def _cmd_orario(chat_id, args):
     from argo_client import get_studenti
@@ -238,39 +238,44 @@ def _cmd_voti(chat_id):
     try:
         from models import get_db
         conn = get_db()
-        voti = conn.execute('SELECT materia, voto, data FROM voti ORDER BY data DESC, id DESC LIMIT 15').fetchall()
+        nomi = _studenti_bot()
+        testi = []
+        for nome in nomi:
+            voti = conn.execute(
+                'SELECT materia, voto, data FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 15', (nome,)
+            ).fetchall()
+            testi.append((nome, voti))
         conn.close()
 
-        if not voti:
-            send_message(chat_id, "📊 Nessun voto registrato.")
-            return
-
-        # Media per materia
-        per_materia = {}
-        for v in voti:
-            try:
-                per_materia.setdefault(v['materia'], []).append(float(str(v['voto']).replace(',','.')))
-            except:
-                pass
-
         soglia = float(os.environ.get('SOGLIA_VOTO', 7))
-        msg = "⭐ <b>Voti di Luigi</b>\n\n"
-        msg += "<b>Media per materia:</b>\n"
-        for mat, vals in sorted(per_materia.items()):
-            media = round(sum(vals)/len(vals), 1)
-            em = '🟢' if media >= soglia else ('🟡' if media >= soglia-1 else '🔴')
-            msg += f"{em} <b>{mat}</b>: {media}\n"
+        for nome, voti in testi:
+            titolo = f"⭐ <b>Voti di {nome}</b>" if nome != 'default' else "⭐ <b>Voti</b>"
+            if not voti:
+                send_message(chat_id, f"{titolo}\n\n📊 Nessun voto registrato.")
+                continue
 
-        msg += "\n<b>Ultimi voti:</b>\n"
-        for v in voti[:8]:
-            try:
-                vn = float(str(v['voto']).replace(',','.'))
-                em = '🟢' if vn >= soglia else ('🟡' if vn >= soglia-1 else '🔴')
-            except:
-                em = '📊'
-            msg += f"{em} {v['materia']}: <b>{v['voto']}</b> <i>({v['data']})</i>\n"
+            per_materia = {}
+            for v in voti:
+                try:
+                    per_materia.setdefault(v['materia'], []).append(float(str(v['voto']).replace(',','.')))
+                except Exception:
+                    pass
 
-        send_message(chat_id, msg)
+            msg = f"{titolo}\n\n<b>Media per materia:</b>\n"
+            for mat, vals in sorted(per_materia.items()):
+                media = round(sum(vals)/len(vals), 1)
+                em = '🟢' if media >= soglia else ('🟡' if media >= soglia-1 else '🔴')
+                msg += f"{em} <b>{mat}</b>: {media}\n"
+
+            msg += "\n<b>Ultimi voti:</b>\n"
+            for v in voti[:8]:
+                try:
+                    vn = float(str(v['voto']).replace(',','.'))
+                    em = '🟢' if vn >= soglia else ('🟡' if vn >= soglia-1 else '🔴')
+                except Exception:
+                    em = '📊'
+                msg += f"{em} {v['materia']}: <b>{v['voto']}</b> <i>({v['data']})</i>\n"
+            send_message(chat_id, msg)
 
     except Exception as e:
         print(f"[BOT] Errore voti: {e}")

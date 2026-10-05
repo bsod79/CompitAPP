@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4
+
+- **Corretto il cambio tra più figli**: con due o più studenti configurati, toccare il nome del figlio faceva uscire dalla PWA e riapriva Home Assistant. Ora il cambio resta dentro CompitAPP e mantiene la pagina in cui ti trovi.
+- I comandi Telegram `/resoconto` e `/voti` ora sono separati per studente (un messaggio per ciascun figlio, con il nome giusto).
+- Rimosso un nome di studente scritto nel codice nel comando `/voti`.
+
 ## 1.0.3
 
 - **Riepilogo serale intelligente**: in modalità `auto` (predefinita) il messaggio "Nessun compito per domani" non viene più inviato quando domani non è giorno di scuola. I giorni di scuola sono riconosciuti dalle lezioni del registro, quindi chi ha lezione il sabato continua a riceverlo; se ci sono compiti, il riepilogo parte sempre.

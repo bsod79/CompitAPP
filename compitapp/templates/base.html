@@ -61,7 +61,7 @@
 {% if studenti is defined and studenti|length > 1 %}
 <div class="studente-bar">
     {% for s in studenti %}
-    <a href="{{ request.path }}?studente={{ s.nome }}"
+    <a href="?studente={{ s.nome|urlencode }}"
        class="studente-chip {{ 'active' if s.nome == studente_sel else 'inactive' }}">
         🎒 {{ s.nome }}
     </a>
