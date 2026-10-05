@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.7
+
+- **Descrizioni chiare nella configurazione**: ogni campo ora ha un nome comprensibile e una spiegazione con esempi (in particolare le frasi personalizzate del riepilogo serale, `reminder_testo_vuoto` e `reminder_testo_chiusura`).
+- **Corretta l'opzione `reminder_mostra_orario`** (e `reminder_modalita`): tornava spenta dopo il riavvio perché era dichiarata facoltativa pur avendo un valore predefinito. Ora il valore scelto viene salvato. Se l'avevi attivata prima dell'aggiornamento, controllala e riattivala.
+- Allineato lo stesso difetto anche al `chat_id` dello studente.
+
 ## 1.0.6
 
 - **Chat ID Telegram per ogni studente**: nella lista `studenti` ogni figlio ha ora il campo facoltativo `chat_id`. Ogni ragazzo riceve solo le proprie notifiche (compiti, riepilogo serale, bacheca, promemoria), mai voti, assenze o note.

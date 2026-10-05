@@ -1,0 +1,65 @@
+configuration:
+  telegram_token:
+    name: Token del bot Telegram
+    description: "Il token che ti dà @BotFather quando crei il bot (formato 123456:ABC-DEF...). Senza token non partono le notifiche."
+  genitore1_nome:
+    name: Nome del genitore 1
+    description: "Solo un'etichetta per riconoscerlo nella pagina Configurazione (es. Mario)."
+  genitore1_chat_id:
+    name: Chat ID Telegram del genitore 1
+    description: "Il numero che il bot ti risponde quando gli scrivi /start. Questo genitore riceve tutte le notifiche, voti compresi."
+  genitore2_nome:
+    name: Nome del genitore 2 (facoltativo)
+    description: "Etichetta del secondo genitore. Lascia il valore predefinito se non lo usi."
+  genitore2_chat_id:
+    name: Chat ID Telegram del genitore 2 (facoltativo)
+    description: "Chat ID del secondo genitore, che riceve le stesse notifiche del primo. Lascia vuoto se non serve."
+  studente_nome:
+    name: Nome dello studente (solo con un figlio)
+    description: "Vecchio metodo, valido solo se hai UN solo figlio. Con più figli usa il campo chat_id dentro ogni studente, nella lista in fondo."
+  studente_chat_id:
+    name: Chat ID dello studente (solo con un figlio)
+    description: "Vecchio metodo, valido solo se hai UN solo figlio: il ragazzo riceve compiti, riepilogo, bacheca e promemoria, MAI i voti. Con più figli usa chat_id dentro ogni studente."
+  soglia_voto_alert:
+    name: Soglia voto di allarme
+    description: "Un voto sotto questo numero viene segnalato come insufficiente (rosso) nella notifica. Es. 6 = i voti sotto il 6 vengono evidenziati."
+  orario_reminder_sera:
+    name: Ora del riepilogo serale
+    description: "A che ora ricevere il riepilogo dei compiti per il giorno dopo, nel formato ore:minuti (es. 19:30). Dopo averla cambiata riavvia l'app."
+  polling_intervallo_minuti:
+    name: Controllo del registro ogni (minuti)
+    description: "Ogni quanti minuti CompitAPP controlla se ci sono novità sul registro. Consigliato 30. Valori molto bassi non servono e appesantiscono il servizio."
+  reminder_modalita:
+    name: Quando inviare il riepilogo serale
+    description: "auto = non invia 'nessun compito' nei giorni senza scuola (es. sabato), ma se ci sono compiti li invia sempre. sempre = lo invia ogni sera. solo_con_compiti = lo invia solo se ci sono compiti."
+  reminder_mostra_orario:
+    name: Aggiungi l'orario di domani al riepilogo
+    description: "Se attivo, il riepilogo serale mostra anche le materie di domani, ora per ora."
+  reminder_testo_vuoto:
+    name: Frase quando NON ci sono compiti (facoltativa)
+    description: "Frase che compare in fondo al messaggio 'Nessun compito per domani'. Esempio: Serata libera, godetevela! Se lasci vuoto usa la frase predefinita (Buona serata!)."
+  reminder_testo_chiusura:
+    name: Frase finale quando ci sono compiti (facoltativa)
+    description: "Frase che chiude il riepilogo quando ci sono compiti. Esempio: Fai con calma e chiedi aiuto se serve! Se lasci vuoto usa la frase predefinita (Buona fortuna!)."
+  anno_scolastico:
+    name: Anno scolastico (non più usato)
+    description: "Campo mantenuto solo per compatibilità: l'anno scolastico ora è calcolato in automatico. Puoi ignorarlo."
+  studenti:
+    name: Studenti (uno per ogni figlio)
+    description: "Aggiungi una voce per ogni figlio con le credenziali del registro Argo DiDUP."
+    fields:
+      nome:
+        name: Nome e cognome dello studente
+        description: "Come lo vuoi vedere nelle notifiche e nella pagina web (es. Luca Rossi)."
+      codice_scuola:
+        name: Codice scuola
+        description: "Il codice della scuola su DiDUP (formato SC12345). Lo trovi nel profilo dell'app DiDUP o in segreteria."
+      username:
+        name: Username DiDUP
+        description: "Il nome utente con cui accedi al registro DiDUP."
+      password:
+        name: Password DiDUP
+        description: "La password del registro DiDUP. Resta salvata nel tuo Home Assistant."
+      chat_id:
+        name: Chat ID Telegram dello studente (facoltativo)
+        description: "Se lo compili, il ragazzo riceve su Telegram compiti, riepilogo serale, bacheca e promemoria, MAI voti, assenze o note. Lascia vuoto se non serve."
