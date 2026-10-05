@@ -6,15 +6,6 @@ from datetime import date, timedelta
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 
-# Orario settimanale hardcoded
-ORARIO = {
-    'lunedi':    [(1,'Italiano','M. Rao'), (2,'Italiano','M. Rao'), (3,'Tecnologia','M. Rao'), (4,'Inglese','A. La Canna'), (5,'Religione','M. Martone')],
-    'martedi':   [(1,'Italiano','M. Rao'), (2,'Storia','M. Rao'), (3,'Storia','M. Rao'), (4,'Scienze Motorie','P. Di Gaetano'), (5,'Matematica','P. Di Gaetano'), (6,'Matematica','P. Di Gaetano')],
-    'mercoledi': [(1,'Italiano','M. Rao'), (2,'Arte e Immagine','M. Rao'), (3,'Matematica','P. Di Gaetano'), (4,'Scienze','P. Di Gaetano'), (5,'Religione','M. Martone')],
-    'giovedi':   [(1,'Inglese','A. La Canna'), (2,'Matematica','P. Di Gaetano'), (3,'Matematica','P. Di Gaetano'), (4,'Italiano','M. Rao'), (5,'Geografia','M. Rao'), (6,'Geografia','M. Rao')],
-    'venerdi':   [(1,'Inglese','A. La Canna'), (2,'Matematica','P. Di Gaetano'), (3,'Italiano','M. Rao'), (4,'Storia','M. Rao'), (5,'Musica','M. Rao')],
-}
-
 GIORNI_ITA = {
     0: 'lunedi', 1: 'martedi', 2: 'mercoledi', 3: 'giovedi', 4: 'venerdi', 5: None, 6: None
 }
@@ -175,10 +166,12 @@ def _cmd_resoconto(chat_id):
         send_message(chat_id, "❌ Errore nel recupero del resoconto.")
 
 def _cmd_orario(chat_id, args):
+    from argo_client import get_studenti
+    from models import get_db
+    from orario_utils import emoji_materia
+
     # Determina il giorno richiesto
     if args:
-        giorno_key = args[0].lower()
-        # Normalizza input (lun → lunedi, mar → martedi, ecc.)
         alias = {
             'lun': 'lunedi', 'lunedi': 'lunedi', 'lunedì': 'lunedi',
             'mar': 'martedi', 'martedi': 'martedi', 'martedì': 'martedi',
@@ -186,7 +179,7 @@ def _cmd_orario(chat_id, args):
             'gio': 'giovedi', 'giovedi': 'giovedi', 'giovedì': 'giovedi',
             'ven': 'venerdi', 'venerdi': 'venerdi', 'venerdì': 'venerdi',
         }
-        giorno_key = alias.get(giorno_key)
+        giorno_key = alias.get(args[0].lower())
         if not giorno_key:
             send_message(chat_id, "❓ Giorno non riconosciuto.\nUsa: /orario lunedi (o mar, mer, gio, ven)")
             return
@@ -198,20 +191,43 @@ def _cmd_orario(chat_id, args):
             send_message(chat_id, "📅 Oggi è weekend — nessuna lezione!\n\nUsa /orario lunedi per vedere l'orario di un giorno specifico.")
             return
 
-    ore = ORARIO.get(giorno_key, [])
+    giorno_idx = list(GIORNI_NOME.keys()).index(giorno_key)
     nome_giorno = GIORNI_NOME.get(giorno_key, giorno_key.capitalize())
 
-    msg = f"🗓️ <b>Orario {nome_giorno}</b>"
-    if e_oggi:
-        msg += " <i>(oggi)</i>"
-    msg += "\n\n"
+    try:
+        studenti = get_studenti() or [{'nome': 'default'}]
+        conn = get_db()
+        blocchi = []
+        for st in studenti:
+            nome = st.get('nome', 'default')
+            ore = conn.execute(
+                'SELECT ora, materia, docente FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
+                (nome, giorno_idx)
+            ).fetchall()
+            ha_orario = conn.execute('SELECT 1 FROM orario WHERE studente=? LIMIT 1', (nome,)).fetchone()
+            blocchi.append((nome, ore, ha_orario))
+        conn.close()
+    except Exception as e:
+        print(f"[BOT] Errore orario: {e}")
+        send_message(chat_id, "❌ Errore nel recupero dell'orario.")
+        return
 
-    for ora, materia, prof in ore:
-        emoji = EMOJI_MATERIE.get(materia, '📚')
-        msg += f"{ora}ª {emoji} <b>{materia}</b>\n   <i>👤 {prof}</i>\n"
-
-    msg += f"\n<i>📚 Luigi di Grazia — Classe 3B</i>"
-    send_message(chat_id, msg)
+    for nome, ore, ha_orario in blocchi:
+        msg = f"🗓️ <b>Orario {nome_giorno}</b>"
+        if e_oggi:
+            msg += " <i>(oggi)</i>"
+        msg += "\n\n"
+        if not ha_orario:
+            msg += "📭 Orario non ancora disponibile: viene ricostruito dalle lezioni del registro.\n"
+        elif not ore:
+            msg += "Nessuna lezione in questo giorno.\n"
+        else:
+            for r in ore:
+                msg += f"{r['ora']}ª {emoji_materia(r['materia'])} <b>{r['materia']}</b>\n"
+                if r['docente']:
+                    msg += f"   <i>👤 {r['docente']}</i>\n"
+        msg += f"\n<i>📚 {nome}</i>"
+        send_message(chat_id, msg)
 
 def _cmd_voti(chat_id):
     try:

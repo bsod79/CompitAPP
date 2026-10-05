@@ -5,7 +5,8 @@ from apscheduler.triggers.cron import CronTrigger
 import pytz
 
 from argo_client import (get_studenti, fetch_compiti, fetch_voti, fetch_assenze,
-                         fetch_note, fetch_bacheca, fetch_argomenti, fetch_promemoria)
+                         fetch_note, fetch_bacheca, fetch_argomenti, fetch_promemoria,
+                         fetch_orario)
 from models import get_db
 from notifier import (notifica_nuovi_compiti, notifica_nuovo_voto, notifica_assenza,
                       notifica_nota, notifica_bacheca, notifica_promemoria,
@@ -204,6 +205,38 @@ def sync_promemoria():
         except Exception as e:
             print(f"[SCHEDULER] Errore promemoria {nome}: {e}")
 
+def sync_orario():
+    """Aggiorna l'orario ricostruito dal registro (al massimo ogni 6 ore per studente)"""
+    for studente in get_studenti():
+        nome = studente.get('nome', 'Studente')
+        try:
+            conn = get_db()
+            ultimo = conn.execute(
+                "SELECT MAX(aggiornato_il) AS t FROM orario WHERE studente=?", (nome,)
+            ).fetchone()['t']
+            conn.close()
+            if ultimo:
+                try:
+                    if datetime.now() - datetime.strptime(ultimo, '%Y-%m-%d %H:%M:%S') < timedelta(hours=6):
+                        continue
+                except Exception:
+                    pass
+            slot = fetch_orario(studente)
+            if not slot:
+                print(f"[SCHEDULER] Orario {nome}: nessuna lezione utile nel registro, tengo quello salvato")
+                continue
+            conn = get_db()
+            conn.execute('DELETE FROM orario WHERE studente=?', (nome,))
+            conn.executemany(
+                'INSERT INTO orario (studente,giorno,ora,materia,docente) VALUES (?,?,?,?,?)',
+                [(nome, s['giorno'], s['ora'], s['materia'], s['docente']) for s in slot]
+            )
+            conn.commit()
+            conn.close()
+            print(f"[SCHEDULER] Orario {nome}: {len(slot)} ore ricostruite dal registro")
+        except Exception as e:
+            print(f"[SCHEDULER] Errore orario {nome}: {e}")
+
 def sync_tutto():
     """Sync completo di tutto"""
     sync_compiti()
@@ -213,6 +246,7 @@ def sync_tutto():
     sync_bacheca()
     sync_argomenti()
     sync_promemoria()
+    sync_orario()
 
 def reminder_sera():
     print("[SCHEDULER] Reminder serale")

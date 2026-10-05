@@ -70,6 +70,14 @@ def init_db():
         creato_il TEXT DEFAULT (datetime('now','localtime'))
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS orario (
+        studente TEXT NOT NULL DEFAULT 'default',
+        giorno INTEGER NOT NULL, ora INTEGER NOT NULL,
+        materia TEXT NOT NULL, docente TEXT,
+        aggiornato_il TEXT DEFAULT (datetime('now','localtime')),
+        PRIMARY KEY (studente, giorno, ora)
+    )''')
+
     conn.commit()
     conn.close()
     print("[DB] Inizializzato correttamente")

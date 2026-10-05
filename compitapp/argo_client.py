@@ -201,6 +201,21 @@ def fetch_argomenti(studente):
         print(f"[ARGO] Errore parsing argomenti: {e}")
         return []
 
+def fetch_orario(studente):
+    """Orario settimanale ricostruito dalle lezioni del registro (Argo non lo espone direttamente)"""
+    dashboard = fetch_dashboard(studente)
+    if not dashboard:
+        return []
+    try:
+        from orario_utils import ricostruisci_orario
+        registro = []
+        for sezione in dashboard.get('data', {}).get('dati', []):
+            registro.extend(sezione.get('registro', []))
+        return ricostruisci_orario(registro)
+    except Exception as e:
+        print(f"[ARGO] Errore ricostruzione orario: {e}")
+        return []
+
 def fetch_promemoria(studente):
     """Estrae promemoria dalla dashboard"""
     dashboard = fetch_dashboard(studente)

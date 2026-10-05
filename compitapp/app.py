@@ -5,6 +5,7 @@ from flask import Flask, render_template, jsonify, request
 from datetime import date, timedelta
 from models import init_db, get_db
 from argo_client import get_studenti
+from orario_utils import GIORNI, anno_scolastico, stile_materia, etichetta_breve
 
 # Redirect errori su stdout per vederli nei log HA
 from scheduler import avvia_scheduler
@@ -153,8 +154,33 @@ def orario():
     giorno_oggi = date.today().weekday() + 1
     if giorno_oggi > 5:
         giorno_oggi = 0
+
+    conn = get_db()
+    righe = conn.execute(
+        'SELECT giorno, ora, materia, docente, aggiornato_il FROM orario '
+        'WHERE studente=? ORDER BY giorno, ora', (sel,)
+    ).fetchall()
+    conn.close()
+
+    per_giorno = {g[0]: [] for g in GIORNI}
+    tabella = {}
+    for r in righe:
+        if r['giorno'] not in per_giorno:
+            continue
+        slot = {
+            'ora': r['ora'], 'materia': r['materia'], 'docente': r['docente'] or '',
+            'breve': etichetta_breve(r['materia']), 'stile': stile_materia(r['materia']),
+        }
+        per_giorno[r['giorno']].append(slot)
+        tabella[(r['ora'], r['giorno'])] = slot
+    max_ora = max([r['ora'] for r in righe], default=0)
+    aggiornato = max([r['aggiornato_il'] for r in righe if r['aggiornato_il']], default='')
+
     return render_template('orario.html', giorno_oggi=giorno_oggi,
-        anno_scolastico=os.environ.get('ANNO_SCOLASTICO','2025/2026'),
+        anno_scolastico=anno_scolastico(),
+        nome_studente=(sel.split()[0] if sel else 'Studente'),
+        giorni=GIORNI, per_giorno=per_giorno, tabella=tabella,
+        ore=range(1, max_ora + 1), ha_orario=bool(righe), aggiornato=aggiornato,
         studenti=studenti, studente_sel=sel)
 
 @app.route('/configurazione')
@@ -232,7 +258,7 @@ def api_test_broadcast():
 def api_reset_db():
     try:
         conn = get_db()
-        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria']:
+        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario']:
             conn.execute(f'DELETE FROM {tabella}')
         conn.commit()
         conn.close()
