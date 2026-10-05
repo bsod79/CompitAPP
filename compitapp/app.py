@@ -152,7 +152,7 @@ def orario():
     studenti = get_studenti()
     sel = _sel(studenti)
     giorno_oggi = date.today().weekday() + 1
-    if giorno_oggi > 5:
+    if giorno_oggi > 6:
         giorno_oggi = 0
 
     conn = get_db()
@@ -173,13 +173,14 @@ def orario():
         }
         per_giorno[r['giorno']].append(slot)
         tabella[(r['ora'], r['giorno'])] = slot
+    giorni_vis = [g for g in GIORNI if g[0] < 5 or per_giorno[g[0]]]
     max_ora = max([r['ora'] for r in righe], default=0)
     aggiornato = max([r['aggiornato_il'] for r in righe if r['aggiornato_il']], default='')
 
     return render_template('orario.html', giorno_oggi=giorno_oggi,
         anno_scolastico=anno_scolastico(),
         nome_studente=(sel.split()[0] if sel else 'Studente'),
-        giorni=GIORNI, per_giorno=per_giorno, tabella=tabella,
+        giorni=giorni_vis, per_giorno=per_giorno, tabella=tabella,
         ore=range(1, max_ora + 1), ha_orario=bool(righe), aggiornato=aggiornato,
         studenti=studenti, studente_sel=sel)
 

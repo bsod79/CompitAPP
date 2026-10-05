@@ -248,17 +248,28 @@ def sync_tutto():
     sync_promemoria()
     sync_orario()
 
+def _giorni_scuola(conn, nome):
+    """Giorni della settimana (0=lun … 6=dom) con lezione, ricavati dall'orario ricostruito.
+    Se l'orario non c'è ancora si assume lunedì-venerdì."""
+    giorni = {r['giorno'] for r in conn.execute('SELECT DISTINCT giorno FROM orario WHERE studente=?', (nome,)).fetchall()}
+    return giorni or {0, 1, 2, 3, 4}
+
 def reminder_sera():
     print("[SCHEDULER] Reminder serale")
-    domani = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+    domani_data = date.today() + timedelta(days=1)
+    domani = domani_data.strftime('%Y-%m-%d')
     for studente in get_studenti():
         nome = studente.get('nome', 'Studente')
         try:
             conn = get_db()
             rows = conn.execute('SELECT materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, domani)).fetchall()
+            domani_scuola = domani_data.weekday() in _giorni_scuola(conn, nome)
+            orario_domani = [(r['ora'], r['materia']) for r in conn.execute(
+                'SELECT ora, materia FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
+                (nome, domani_data.weekday())).fetchall()]
             conn.close()
             compiti_domani = {'materie':[r['materia'] for r in rows], 'compiti':[r['testo'] for r in rows]} if rows else None
-            reminder_compiti_domani(nome, compiti_domani)
+            reminder_compiti_domani(nome, compiti_domani, domani_scuola=domani_scuola, orario_domani=orario_domani)
         except Exception as e:
             print(f"[SCHEDULER] Errore reminder {nome}: {e}")
 

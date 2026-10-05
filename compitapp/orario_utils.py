@@ -7,7 +7,7 @@ ricostruisce l'orario reale, che si aggiorna da solo a ogni cambio (anche a iniz
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-# Giorni scolastici mostrati (0 = lunedì … 4 = venerdì)
+# Giorni di lezione (0 = lunedì … 5 = sabato; il sabato si mostra solo se ci sono lezioni)
 GIORNI = [
     # idx, emoji, nome, sigla, colore titolo, sfondo colonna "oggi" (desktop)
     (0, '☀️', 'Lunedì',    'Lun', '#d97706', '#fffbeb'),
@@ -15,8 +15,9 @@ GIORNI = [
     (2, '🌈', 'Mercoledì', 'Mer', '#0f766e', '#f0fdfa'),
     (3, '⚡', 'Giovedì',   'Gio', '#5b21b6', '#faf5ff'),
     (4, '🎉', 'Venerdì',   'Ven', '#db2777', '#fdf2f8'),
+    (5, '🎈', 'Sabato',    'Sab', '#0369a1', '#f0f9ff'),
 ]
-GIORNI_CHIAVE = {'lunedi': 0, 'martedi': 1, 'mercoledi': 2, 'giovedi': 3, 'venerdi': 4}
+GIORNI_CHIAVE = {'lunedi': 0, 'martedi': 1, 'mercoledi': 2, 'giovedi': 3, 'venerdi': 4, 'sabato': 5}
 
 # (parola chiave, emoji, sfondo, accento, testo) — l'ordine conta: la prima che combacia vince
 _MATERIE = [
@@ -109,7 +110,7 @@ def _ricostruisci(lezioni, dal, al):
         materia = (r.get('materia') or '').strip()
         if not d or not materia or not isinstance(ora, int) or ora < 1:
             continue
-        if not (dal <= d <= al) or d.weekday() > 4:
+        if not (dal <= d <= al) or d.weekday() > 5:
             continue
         uniche.setdefault((d, ora, materia), (r.get('docente') or '').strip())
 
@@ -134,6 +135,9 @@ def _ricostruisci(lezioni, dal, al):
 
     slot = []
     for (giorno, ora), per_materia in voti.items():
+        # Il sabato conta come giorno di scuola solo con lezioni in almeno 2 sabati (non per un recupero isolato)
+        if giorno == 5 and len(date_per_giorno[5]) < 2:
+            continue
         materia = max(per_materia, key=lambda m: (per_materia[m], max(visti[(giorno, ora)][m])))
         # Date in cui quest'ora poteva esserci (giornate abbastanza lunghe): serve almeno metà delle volte
         utili = sum(1 for d in date_per_giorno[giorno] if ultima_ora[d] >= ora)
@@ -151,7 +155,7 @@ def ricostruisci_orario(registro, oggi=None):
     """Orario settimanale ricostruito dalle lezioni del registro.
 
     Usa le ultime 3 settimane; se sono vuote (es. dopo le vacanze) allarga a 60 giorni.
-    Ritorna una lista di {'giorno': 0-4, 'ora': int, 'materia': str, 'docente': str}.
+    Ritorna una lista di {'giorno': 0-5, 'ora': int, 'materia': str, 'docente': str}.
     """
     oggi = oggi or date.today()
     for giorni in (21, 60):

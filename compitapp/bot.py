@@ -7,11 +7,11 @@ from datetime import date, timedelta
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 
 GIORNI_ITA = {
-    0: 'lunedi', 1: 'martedi', 2: 'mercoledi', 3: 'giovedi', 4: 'venerdi', 5: None, 6: None
+    0: 'lunedi', 1: 'martedi', 2: 'mercoledi', 3: 'giovedi', 4: 'venerdi', 5: 'sabato', 6: None
 }
 GIORNI_NOME = {
     'lunedi': '☀️ Lunedì', 'martedi': '🌤️ Martedì', 'mercoledi': '🌈 Mercoledì',
-    'giovedi': '⚡ Giovedì', 'venerdi': '🎉 Venerdì'
+    'giovedi': '⚡ Giovedì', 'venerdi': '🎉 Venerdì', 'sabato': '🎈 Sabato'
 }
 EMOJI_MATERIE = {
     'Italiano': '📝', 'Storia': '📜', 'Tecnologia': '💻', 'Inglese': '🇬🇧',
@@ -178,10 +178,11 @@ def _cmd_orario(chat_id, args):
             'mer': 'mercoledi', 'mercoledi': 'mercoledi', 'mercoledì': 'mercoledi',
             'gio': 'giovedi', 'giovedi': 'giovedi', 'giovedì': 'giovedi',
             'ven': 'venerdi', 'venerdi': 'venerdi', 'venerdì': 'venerdi',
+            'sab': 'sabato', 'sabato': 'sabato',
         }
         giorno_key = alias.get(args[0].lower())
         if not giorno_key:
-            send_message(chat_id, "❓ Giorno non riconosciuto.\nUsa: /orario lunedi (o mar, mer, gio, ven)")
+            send_message(chat_id, "❓ Giorno non riconosciuto.\nUsa: /orario lunedi (o mar, mer, gio, ven, sab)")
             return
         e_oggi = False
     else:
@@ -210,6 +211,10 @@ def _cmd_orario(chat_id, args):
     except Exception as e:
         print(f"[BOT] Errore orario: {e}")
         send_message(chat_id, "❌ Errore nel recupero dell'orario.")
+        return
+
+    if giorno_key == 'sabato' and e_oggi and not any(ore for _, ore, _ in blocchi):
+        send_message(chat_id, "📅 Oggi è weekend — nessuna lezione!\n\nUsa /orario lunedi per vedere l'orario di un giorno specifico.")
         return
 
     for nome, ore, ha_orario in blocchi:

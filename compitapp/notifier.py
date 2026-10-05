@@ -1,6 +1,8 @@
 import os
+import html
 import requests
 from datetime import date, datetime, timedelta
+from orario_utils import emoji_materia
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_IDS_RAW = os.environ.get('TELEGRAM_CHAT_IDS', '')
@@ -105,15 +107,54 @@ def notifica_promemoria(nome, data, docente, testo):
     msg += f"\n{testo[:300]}"
     send_telegram(msg)
 
-def reminder_compiti_domani(nome, compiti_domani):
+def _opt_bool(chiave, default):
+    v = os.environ.get(chiave)
+    if v is None or v == '':
+        return default
+    return str(v).strip().lower() in ('1', 'true', 'yes', 'si', 'sì', 'on')
+
+def _opt_testo(chiave, default):
+    v = os.environ.get(chiave, '').strip()
+    return html.escape(v, quote=False) if v else default
+
+def reminder_compiti_domani(nome, compiti_domani, domani_scuola=True, orario_domani=None):
+    """Riepilogo serale dei compiti per domani.
+
+    Personalizzabile da configurazione (variabili d'ambiente impostate in wsgi.py):
+      REMINDER_MODALITA        auto (default) | sempre | solo_con_compiti
+      REMINDER_MOSTRA_ORARIO   1/0 — aggiunge l'orario di domani
+      REMINDER_TESTO_VUOTO     frase quando non ci sono compiti
+      REMINDER_TESTO_CHIUSURA  frase finale quando ci sono compiti
+    In modalità auto il messaggio "nessun compito" non parte se domani non è giorno di scuola
+    (es. sabato per chi non ha lezioni il sabato); con compiti assegnati parte sempre.
+    """
     domani = date.today() + timedelta(days=1)
-    if not compiti_domani:
-        send_telegram(f"✅ <b>{nome}</b> — Nessun compito per domani!\n🎉 Buona serata!")
-        return
-    msg = f"🌙 <b>{nome} — Compiti per {_data_ita(domani)}</b>\n\n"
-    for materia, testo in zip(compiti_domani['materie'], compiti_domani['compiti']):
-        msg += f"📖 <b>{materia}</b>\n{testo}\n\n"
-    msg += "📌 <i>Buona fortuna! 💪</i>"
+    modalita = os.environ.get('REMINDER_MODALITA', 'auto').strip().lower() or 'auto'
+    ha_compiti = bool(compiti_domani and compiti_domani.get('materie'))
+
+    if not ha_compiti:
+        if modalita == 'solo_con_compiti':
+            print(f"[REMINDER] {nome}: nessun compito per domani, riepilogo non inviato (modalità solo_con_compiti)")
+            return
+        if modalita == 'auto' and not domani_scuola:
+            print(f"[REMINDER] {nome}: domani ({_data_ita(domani)}) non è giorno di scuola e non ci sono compiti, riepilogo non inviato")
+            return
+
+    testo_vuoto = _opt_testo('REMINDER_TESTO_VUOTO', '🎉 Buona serata!')
+    testo_chiusura = _opt_testo('REMINDER_TESTO_CHIUSURA', '📌 <i>Buona fortuna! 💪</i>')
+
+    if not ha_compiti:
+        msg = f"✅ <b>{nome}</b> — Nessun compito per domani!\n{testo_vuoto}"
+    else:
+        msg = f"🌙 <b>{nome} — Compiti per {_data_ita(domani)}</b>\n\n"
+        for materia, testo in zip(compiti_domani['materie'], compiti_domani['compiti']):
+            msg += f"📖 <b>{materia}</b>\n{testo}\n\n"
+        msg += testo_chiusura
+
+    if orario_domani and _opt_bool('REMINDER_MOSTRA_ORARIO', False):
+        msg += f"\n\n🗓️ <b>Orario di {_data_ita(domani).split()[0].lower()}</b>\n"
+        for ora, materia in orario_domani:
+            msg += f"{ora}ª {emoji_materia(materia)} {materia}\n"
     send_telegram(msg.strip())
 
 def sync_sensori_ha(nome, stats):

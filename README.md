@@ -167,6 +167,11 @@ studente_chat_id: ""
 # Impostazioni notifiche
 soglia_voto_alert: 7              # Alert se voto sotto questa soglia
 orario_reminder_sera: "20:00"     # Orario reminder serale compiti
+reminder_modalita: "auto"         # auto = salta il riepilogo se domani non c'è scuola e non ci sono compiti
+                                  # (es. sabato); sempre = ogni sera; solo_con_compiti = solo se ci sono compiti
+reminder_mostra_orario: false     # true = aggiunge l'orario di domani al riepilogo
+reminder_testo_vuoto: ""          # frase personalizzata quando non ci sono compiti (vuoto = predefinita)
+reminder_testo_chiusura: ""       # frase personalizzata a fine riepilogo (vuoto = predefinita)
 polling_intervallo_minuti: 30     # Frequenza controllo DiDUP (minuti)
 anno_scolastico: "2025/2026"
 

@@ -117,7 +117,7 @@ function showDay(idx) {
     el.classList.add('visible');
 }
 // Mostra giorno corrente all'avvio se è un giorno scolastico
-if (oggiIdx >= 0 && oggiIdx <= 4) showDay(oggiIdx);
+if (oggiIdx >= 0 && document.getElementById('giorno-' + oggiIdx)) showDay(oggiIdx);
 else showDay(0);
 </script>
 

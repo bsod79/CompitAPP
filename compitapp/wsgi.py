@@ -29,6 +29,10 @@ if os.path.exists(config_path):
     os.environ['SOGLIA_VOTO']       = str(cfg.get('soglia_voto_alert', 7))
     os.environ['ORARIO_REMINDER']   = str(cfg.get('orario_reminder_sera', '20:00'))
     os.environ['POLLING_MINUTI']    = str(cfg.get('polling_intervallo_minuti', 30))
+    os.environ['REMINDER_MODALITA']      = str(cfg.get('reminder_modalita', 'auto'))
+    os.environ['REMINDER_MOSTRA_ORARIO'] = '1' if cfg.get('reminder_mostra_orario', False) else '0'
+    os.environ['REMINDER_TESTO_VUOTO']   = str(cfg.get('reminder_testo_vuoto', '') or '')
+    os.environ['REMINDER_TESTO_CHIUSURA'] = str(cfg.get('reminder_testo_chiusura', '') or '')
     os.environ['STUDENTI']          = json.dumps(cfg.get('studenti', []))
     os.environ['ANNO_SCOLASTICO']   = str(cfg.get('anno_scolastico', '2025/2026'))
     print(f"[CONFIG] ✅ Token: {os.environ['TELEGRAM_TOKEN'][:15]}...")

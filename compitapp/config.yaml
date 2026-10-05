@@ -1,7 +1,7 @@
 name: "CompitAPP"
 description: "Compiti e voti scolastici via DiDUP/Argo ScuolaNext — notifiche Telegram automatiche"
 url: "https://github.com/elbarto8383/CompitAPP"
-version: "1.0.2"
+version: "1.0.3"
 slug: compitapp
 init: false
 arch:
@@ -24,6 +24,10 @@ options:
   soglia_voto_alert: 7
   orario_reminder_sera: "20:00"
   polling_intervallo_minuti: 30
+  reminder_modalita: "auto"
+  reminder_mostra_orario: false
+  reminder_testo_vuoto: ""
+  reminder_testo_chiusura: ""
   anno_scolastico: "2025/2026"
   studenti:
     - nome: ""
@@ -42,6 +46,10 @@ schema:
   soglia_voto_alert: int
   orario_reminder_sera: str
   polling_intervallo_minuti: int
+  reminder_modalita: list(auto|sempre|solo_con_compiti)?
+  reminder_mostra_orario: bool?
+  reminder_testo_vuoto: str?
+  reminder_testo_chiusura: str?
   anno_scolastico: str
   studenti:
     - nome: str
