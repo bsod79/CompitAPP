@@ -228,7 +228,7 @@ async function resetDB() {
 
 async function loadStats() {
     try {
-        const r = await fetch(getApiBase() + '/api/stats');
+        const r = await fetch(getApiBase() + '/api/stats?studente=' + encodeURIComponent({{ (studente_sel or '')|tojson }}));
         const d = await r.json();
         document.getElementById('stats-content').innerHTML = `
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">

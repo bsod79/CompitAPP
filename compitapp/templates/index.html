@@ -100,7 +100,7 @@
         </div>
         {% for v in ultimi_voti %}
         <div class="compito-item" style="display:flex;align-items:center;gap:12px">
-            {% set voto_num = v['voto']|float(-1) %}
+            {% set voto_num = v['voto']|replace(',', '.')|float(-1) %}
             <div class="voto-chip {% if voto_num >= soglia_voto %}voto-ok{% elif voto_num >= soglia_voto - 1 %}voto-warn{% else %}voto-bad{% endif %}">
                 {{ v['voto'] }}
             </div>

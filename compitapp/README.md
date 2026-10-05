@@ -93,15 +93,16 @@ Argo non rende disponibile l'orario settimanale in modo diretto. CompitAPP lo **
 Per ogni studente vengono creati automaticamente:
 `sensor.compitapp_<nome>_compiti_oggi`, `_compiti_domani`, `_ultimo_voto`, `_media_voti`, `_assenze`, `_bacheca`.
 
-<!--
-Screenshot (togli questo commento e aggiungi le immagini in docs/screenshots/):
+## 📸 Screenshot
 
 <div align="center">
-<img src="docs/screenshots/oggi.png" width="260" alt="Compiti di oggi">
-<img src="docs/screenshots/orario.png" width="260" alt="Orario">
-<img src="docs/screenshots/telegram.png" width="260" alt="Notifica Telegram">
+<img src="docs/screenshots/oggi.png" width="200" alt="Compiti di oggi">
+<img src="docs/screenshots/voti.png" width="200" alt="Voti e medie">
+<img src="docs/screenshots/orario.png" width="200" alt="Orario settimanale">
+<img src="docs/screenshots/configurazione.png" width="200" alt="Configurazione">
 </div>
--->
+
+<sub>Screenshot con dati di fantasia.</sub>
 
 ---
 

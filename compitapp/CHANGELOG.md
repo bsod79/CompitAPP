@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5
+
+- **Voti con la virgola** (es. 7,5): ora il colore (verde/giallo/rosso) viene calcolato correttamente, prima venivano sempre segnati come insufficienti.
+- **Pagina Configurazione**: le "Statistiche database" ora mostrano i dati dello studente selezionato (prima erano sempre a zero).
+- Aggiunti gli screenshot nel README.
+
 ## 1.0.4
 
 - **Corretto il cambio tra più figli**: con due o più studenti configurati, toccare il nome del figlio faceva uscire dalla PWA e riapriva Home Assistant. Ora il cambio resta dentro CompitAPP e mantiene la pagina in cui ti trovi.
