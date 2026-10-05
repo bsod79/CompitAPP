@@ -260,7 +260,7 @@ def api_test_broadcast():
 def api_reset_db():
     try:
         conn = get_db()
-        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario']:
+        for tabella in ['compiti','voti','assenze','note_disciplinari','bacheca','argomenti','promemoria','orario','lezioni_registro']:
             conn.execute(f'DELETE FROM {tabella}')
         conn.commit()
         conn.close()

@@ -86,7 +86,7 @@ Ogni sera all'orario scelto arriva il riepilogo dei compiti per il giorno dopo.
 
 ### 🗓️ Come funziona l'orario
 
-Argo non rende disponibile l'orario settimanale in modo diretto. CompitAPP lo **ricostruisce dalle lezioni registrate** nelle ultime settimane (giorno, ora, materia, docente) e lo aggiorna da solo, anche a inizio anno scolastico. Nei primi giorni di scuola, o dopo una supplenza, può essere temporaneamente incompleto: si corregge con qualche giorno di lezioni.
+Argo non rende disponibile l'orario settimanale in modo diretto. CompitAPP lo **ricostruisce dalle lezioni registrate** (giorno, ora, materia, docente): Argo restituisce solo gli ultimi giorni, quindi CompitAPP conserva le lezioni che vede e **l'orario si completa giorno dopo giorno**. Dopo circa una settimana di scuola (con CompitAPP in funzione) è completo, poi si aggiorna da solo se la scuola lo cambia.
 
 ### 🏠 Sensori Home Assistant
 
@@ -225,7 +225,7 @@ Per metterlo in una dashboard: **Aggiungi scheda → Pagina Web** con URL `/api/
 → Premi 🔄 Sync in alto a destra: il primo sync può richiedere qualche secondo.
 
 **L'orario è vuoto o incompleto**
-→ Viene ricostruito dalle lezioni registrate: servono alcuni giorni di scuola e almeno una sincronizzazione.
+→ Viene ricostruito dalle lezioni registrate: ogni giorno ne compare uno in più, quindi servono alcuni giorni di scuola con CompitAPP acceso (circa una settimana per averlo completo).
 
 **Posso usarlo con più figli?**
 → Sì: aggiungi più voci in `studenti`. Ognuno ha sensori e notifiche propri.

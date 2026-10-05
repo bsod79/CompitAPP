@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.8
+
+- **Orario che si completa giorno dopo giorno**: Argo restituisce soltanto le lezioni degli ultimi giorni, quindi prima l'orario poteva mostrare un solo giorno e, aggiornandosi, perdere i precedenti. Ora CompitAPP conserva le lezioni viste e ricostruisce l'orario da tutto lo storico: ogni giorno di scuola ne aggiunge uno, e dopo circa una settimana è completo.
+- Aggiornamento dell'orario più frequente (ogni ora invece che ogni 6) per non perdere le lezioni del giorno.
+- Nei registri dell'app compare un riepilogo per capire cosa restituisce Argo (quante lezioni e di quali giorni).
+- Nuova tabella `lezioni_registro` nel database, creata in automatico all'avvio (nessuna azione richiesta).
+
 ## 1.0.7
 
 - **Descrizioni chiare nella configurazione**: ogni campo ora ha un nome comprensibile e una spiegazione con esempi (in particolare le frasi personalizzate del riepilogo serale, `reminder_testo_vuoto` e `reminder_testo_chiusura`).

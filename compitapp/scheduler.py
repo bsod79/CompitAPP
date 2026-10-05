@@ -6,7 +6,7 @@ import pytz
 
 from argo_client import (get_studenti, fetch_compiti, fetch_voti, fetch_assenze,
                          fetch_note, fetch_bacheca, fetch_argomenti, fetch_promemoria,
-                         fetch_orario)
+                         fetch_orario, fetch_registro)
 from models import get_db
 from notifier import (notifica_nuovi_compiti, notifica_nuovo_voto, notifica_assenza,
                       notifica_nota, notifica_bacheca, notifica_promemoria,
@@ -205,8 +205,28 @@ def sync_promemoria():
         except Exception as e:
             print(f"[SCHEDULER] Errore promemoria {nome}: {e}")
 
+def _archivia_lezioni(conn, nome, registro):
+    """Conserva le lezioni viste nel registro: Argo ne restituisce solo gli ultimi giorni,
+    quindi l'orario si completa man mano che passano i giorni."""
+    from orario_utils import _parse_data
+    nuove = 0
+    for r in registro:
+        d = _parse_data(r.get('datGiorno'))
+        ora = r.get('ora')
+        materia = (r.get('materia') or '').strip()
+        if not d or not materia or not isinstance(ora, int) or ora < 1:
+            continue
+        cur = conn.execute(
+            'INSERT OR IGNORE INTO lezioni_registro (studente,data,ora,materia,docente) VALUES (?,?,?,?,?)',
+            (nome, d.isoformat(), ora, materia, (r.get('docente') or '').strip()))
+        nuove += cur.rowcount
+    limite = (date.today() - timedelta(days=150)).isoformat()
+    conn.execute('DELETE FROM lezioni_registro WHERE studente=? AND data<?', (nome, limite))
+    return nuove
+
 def sync_orario():
-    """Aggiorna l'orario ricostruito dal registro (al massimo ogni 6 ore per studente)"""
+    """Aggiorna l'orario ricostruito dalle lezioni del registro (al massimo ogni ora per studente)"""
+    from orario_utils import ricostruisci_orario
     for studente in get_studenti():
         nome = studente.get('nome', 'Studente')
         try:
@@ -217,13 +237,27 @@ def sync_orario():
             conn.close()
             if ultimo:
                 try:
-                    if datetime.now() - datetime.strptime(ultimo, '%Y-%m-%d %H:%M:%S') < timedelta(hours=6):
+                    if datetime.now() - datetime.strptime(ultimo, '%Y-%m-%d %H:%M:%S') < timedelta(hours=1):
                         continue
                 except Exception:
                     pass
-            slot = fetch_orario(studente)
+            registro = fetch_registro(studente)
+            date_viste = sorted({str(r.get('datGiorno'))[:10] for r in registro if r.get('datGiorno')})
+            conn = get_db()
+            nuove = _archivia_lezioni(conn, nome, registro)
+            conn.commit()
+            storico = conn.execute(
+                'SELECT data, ora, materia, docente FROM lezioni_registro WHERE studente=?', (nome,)
+            ).fetchall()
+            conn.close()
+            print(f"[SCHEDULER] Registro {nome}: {len(registro)} righe su {len(date_viste)} giorni "
+                  f"({date_viste[0] if date_viste else '-'} → {date_viste[-1] if date_viste else '-'}), "
+                  f"{nuove} lezioni nuove in archivio, {len(storico)} totali")
+            slot = ricostruisci_orario([
+                {'datGiorno': r['data'], 'ora': r['ora'], 'materia': r['materia'], 'docente': r['docente']}
+                for r in storico])
             if not slot:
-                print(f"[SCHEDULER] Orario {nome}: nessuna lezione utile nel registro, tengo quello salvato")
+                print(f"[SCHEDULER] Orario {nome}: nessuna lezione utile, tengo quello salvato")
                 continue
             conn = get_db()
             conn.execute('DELETE FROM orario WHERE studente=?', (nome,))
@@ -233,7 +267,8 @@ def sync_orario():
             )
             conn.commit()
             conn.close()
-            print(f"[SCHEDULER] Orario {nome}: {len(slot)} ore ricostruite dal registro")
+            giorni_ok = sorted({s['giorno'] for s in slot})
+            print(f"[SCHEDULER] Orario {nome}: {len(slot)} ore su {len(giorni_ok)} giorni della settimana")
         except Exception as e:
             print(f"[SCHEDULER] Errore orario {nome}: {e}")
 
