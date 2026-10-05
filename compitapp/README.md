@@ -9,6 +9,10 @@
 
 [![Aggiungi a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Felbarto8383%2FCompitAPP)
 
+**Ti è utile? Offrimi un caffè ☕**
+
+[![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white&style=for-the-badge)](https://paypal.me/elbarto83)
+
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Add--on-41BDF5?logo=home-assistant&logoColor=white)](https://www.home-assistant.io/)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![Licenza](https://img.shields.io/badge/Licenza-MIT-green.svg)](LICENSE)
@@ -234,12 +238,6 @@ Per metterlo in una dashboard: **Aggiungi scheda → Pagina Web** con URL `/api/
 ## 🛠️ Supporto e contributi
 
 Bug e richieste: [Issue su GitHub](https://github.com/elbarto8383/CompitAPP/issues). I contributi sono benvenuti con una pull request. Prima di aprire una issue **togli** da log e schermate username, password, token e Chat ID.
-
-## 💝 Supporta il progetto
-
-CompitAPP è open source e sviluppato nel tempo libero. Se ti è utile puoi offrire un caffè:
-
-[![Donate PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white&style=for-the-badge)](https://paypal.me/elbarto83)
 
 ---
 
