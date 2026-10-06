@@ -91,7 +91,19 @@ Argo non rende disponibile l'orario settimanale in modo diretto. CompitAPP lo **
 ### 🏠 Sensori Home Assistant
 
 Per ogni studente vengono creati automaticamente:
-`sensor.compitapp_<nome>_compiti_oggi`, `_compiti_domani`, `_ultimo_voto`, `_media_voti`, `_assenze`, `_bacheca`.
+`sensor.compitapp_<nome>_compiti_oggi`, `_compiti_domani`, `_compiti_prossimi`, `_ultimo_voto`, `_media_voti`, `_assenze`, `_bacheca`.
+
+- **`_compiti_domani`**: state = numero di compiti; attributi `data`, `lista` (materia/testo) e `testo` (stringa pronta per mail/notify).
+- **`_compiti_prossimi`**: compiti da domani ai prossimi 3 giorni; state = numero; attributi `giorni`, `da`, `a`, `lista`, `testo` (raggruppato per data).
+
+Esempio in un’automazione Home Assistant:
+
+```yaml
+action: notify.email
+data:
+  title: "Compiti prossimi giorni"
+  message: "{{ state_attr('sensor.compitapp_mario_compiti_prossimi', 'testo') }}"
+```
 
 ## 📸 Screenshot
 

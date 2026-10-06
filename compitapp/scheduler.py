@@ -10,7 +10,8 @@ from argo_client import (get_studenti, fetch_compiti, fetch_voti, fetch_assenze,
 from models import get_db
 from notifier import (notifica_nuovi_compiti, notifica_nuovo_voto, notifica_assenza,
                       notifica_nota, notifica_bacheca, notifica_promemoria,
-                      reminder_compiti_domani, sync_sensori_ha)
+                      reminder_compiti_domani, sync_sensori_ha,
+                      GIORNI_COMPITI_PROSSIMI, _righe_compiti_to_lista, _format_compiti_testo)
 
 TZ = pytz.timezone('Europe/Rome')
 ORARIO_REMINDER = os.environ.get('ORARIO_REMINDER', '20:00')
@@ -310,11 +311,22 @@ def reminder_sera():
 
 def _aggiorna_sensori(nome):
     try:
-        oggi = date.today().strftime('%Y-%m-%d')
-        domani = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        oggi_d = date.today()
+        oggi = oggi_d.strftime('%Y-%m-%d')
+        domani_d = oggi_d + timedelta(days=1)
+        domani = domani_d.strftime('%Y-%m-%d')
+        prossimi_a_d = oggi_d + timedelta(days=GIORNI_COMPITI_PROSSIMI)
+        prossimi_a = prossimi_a_d.strftime('%Y-%m-%d')
         conn = get_db()
         n_oggi   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, oggi)).fetchone()['n']
-        n_domani = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, domani)).fetchone()['n']
+        rows_domani = conn.execute(
+            'SELECT data, materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia',
+            (nome, domani)
+        ).fetchall()
+        rows_prossimi = conn.execute(
+            'SELECT data, materia, testo FROM compiti WHERE studente=? AND data>=? AND data<=? ORDER BY data, materia',
+            (nome, domani, prossimi_a)
+        ).fetchall()
         n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
         n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND notificato=0', (nome,)).fetchone()['n']
         ultimo_voto = conn.execute('SELECT voto, materia FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 1', (nome,)).fetchone()
@@ -327,8 +339,20 @@ def _aggiorna_sensori(nome):
             except Exception:
                 pass
         media = round(sum(valori)/len(valori), 1) if valori else 'N/D'
+        lista_domani = _righe_compiti_to_lista(rows_domani)
+        lista_prossimi = _righe_compiti_to_lista(rows_prossimi)
         sync_sensori_ha(nome, {
-            'compiti_oggi': n_oggi, 'compiti_domani': n_domani,
+            'compiti_oggi': n_oggi,
+            'compiti_domani': len(lista_domani),
+            'compiti_prossimi': len(lista_prossimi),
+            'giorni_compiti_prossimi': GIORNI_COMPITI_PROSSIMI,
+            'data_domani': domani,
+            'data_prossimi_da': domani,
+            'data_prossimi_a': prossimi_a,
+            'lista_compiti_domani': lista_domani,
+            'lista_compiti_prossimi': lista_prossimi,
+            'testo_compiti_domani': _format_compiti_testo(lista_domani, raggruppa_per_data=False),
+            'testo_compiti_prossimi': _format_compiti_testo(lista_prossimi),
             'assenze_totali': n_assenze, 'bacheca_non_lette': n_bacheca,
             'ultimo_voto': ultimo_voto['voto'] if ultimo_voto else 'N/D',
             'ultima_materia': ultimo_voto['materia'] if ultimo_voto else '',

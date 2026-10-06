@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.9
+
+- **Sensori compiti con testo**: `sensor.compitapp_<nome>_compiti_domani` espone anche gli attributi `data`, `lista` e `testo` (non solo il conteggio), così puoi usarli in automazioni Home Assistant (es. mail).
+- **Nuovo sensore** `sensor.compitapp_<nome>_compiti_prossimi`: compiti da domani ai prossimi 3 giorni, con attributi `giorni`, `da`, `a`, `lista` e `testo` raggruppato per data.
+
 ## 1.0.8
 
 - **Orario che si completa giorno dopo giorno**: Argo restituisce soltanto le lezioni degli ultimi giorni, quindi prima l'orario poteva mostrare un solo giorno e, aggiornandosi, perdere i precedenti. Ora CompitAPP conserva le lezioni viste e ricostruisce l'orario da tutto lo storico: ogni giorno di scuola ne aggiunge uno, e dopo circa una settimana è completo.

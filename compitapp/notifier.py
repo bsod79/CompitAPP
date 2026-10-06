@@ -158,19 +158,114 @@ def reminder_compiti_domani(nome, compiti_domani, domani_scuola=True, orario_dom
             msg += f"{ora}ª {emoji_materia(materia)} {materia}\n"
     send_telegram_compiti(msg.strip(), nome)
 
+GIORNI_COMPITI_PROSSIMI = 3
+
+
+def _righe_compiti_to_lista(rows):
+    """Converte righe DB compiti in lista di dict per attributi HA."""
+    lista = []
+    for r in rows or []:
+        data = r['data']
+        lista.append({
+            'data': data,
+            'data_ita': _data_ita(data),
+            'materia': r['materia'] or '',
+            'testo': r['testo'] or '',
+        })
+    return lista
+
+
+def _format_compiti_testo(lista, raggruppa_per_data=True):
+    """Testo plain per automazioni HA (mail, notify, ecc.)."""
+    if not lista:
+        return 'Nessun compito'
+    if not raggruppa_per_data:
+        lines = []
+        for item in lista:
+            lines.append(f"📖 {item['materia']}\n{item['testo']}")
+        return '\n\n'.join(lines)
+    lines = []
+    data_corrente = None
+    for item in lista:
+        if item['data'] != data_corrente:
+            data_corrente = item['data']
+            if lines:
+                lines.append('')
+            lines.append(f"📅 {item['data_ita']}")
+        lines.append(f"📖 {item['materia']}\n{item['testo']}")
+    return '\n'.join(lines)
+
+
 def sync_sensori_ha(nome, stats):
     if not SUPERVISOR_TOKEN:
         return
     headers = {'Authorization': f'Bearer {SUPERVISOR_TOKEN}', 'Content-Type': 'application/json'}
     slug = nome.lower().replace(' ','_')
     base = 'http://supervisor/core/api/states'
+
+    lista_domani = stats.get('lista_compiti_domani') or []
+    lista_prossimi = stats.get('lista_compiti_prossimi') or []
+    giorni_prossimi = stats.get('giorni_compiti_prossimi', GIORNI_COMPITI_PROSSIMI)
+
     sensori = {
-        f'sensor.compitapp_{slug}_compiti_oggi':    {'state': stats.get('compiti_oggi',0), 'attributes': {'friendly_name': f'CompitAPP {nome} - Compiti oggi', 'icon': 'mdi:book-open'}},
-        f'sensor.compitapp_{slug}_compiti_domani':  {'state': stats.get('compiti_domani',0), 'attributes': {'friendly_name': f'CompitAPP {nome} - Compiti domani', 'icon': 'mdi:book-clock'}},
-        f'sensor.compitapp_{slug}_assenze':         {'state': stats.get('assenze_totali',0), 'attributes': {'friendly_name': f'CompitAPP {nome} - Assenze', 'icon': 'mdi:account-off'}},
-        f'sensor.compitapp_{slug}_bacheca':         {'state': stats.get('bacheca_non_lette',0), 'attributes': {'friendly_name': f'CompitAPP {nome} - Bacheca', 'icon': 'mdi:bulletin-board'}},
-        f'sensor.compitapp_{slug}_ultimo_voto':     {'state': stats.get('ultimo_voto','N/D'), 'attributes': {'friendly_name': f'CompitAPP {nome} - Ultimo voto', 'materia': stats.get('ultima_materia',''), 'icon': 'mdi:star'}},
-        f'sensor.compitapp_{slug}_media_voti':      {'state': stats.get('media_voti','N/D'), 'attributes': {'friendly_name': f'CompitAPP {nome} - Media voti', 'icon': 'mdi:chart-line'}},
+        f'sensor.compitapp_{slug}_compiti_oggi': {
+            'state': stats.get('compiti_oggi', 0),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Compiti oggi',
+                'icon': 'mdi:book-open',
+            },
+        },
+        f'sensor.compitapp_{slug}_compiti_domani': {
+            'state': stats.get('compiti_domani', 0),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Compiti domani',
+                'icon': 'mdi:book-clock',
+                'data': stats.get('data_domani', ''),
+                'lista': lista_domani,
+                'testo': stats.get('testo_compiti_domani') or _format_compiti_testo(lista_domani, raggruppa_per_data=False),
+            },
+        },
+        f'sensor.compitapp_{slug}_compiti_prossimi': {
+            'state': stats.get('compiti_prossimi', 0),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Compiti prossimi giorni',
+                'icon': 'mdi:calendar-clock',
+                'giorni': giorni_prossimi,
+                'da': stats.get('data_prossimi_da', ''),
+                'a': stats.get('data_prossimi_a', ''),
+                'lista': lista_prossimi,
+                'testo': stats.get('testo_compiti_prossimi') or _format_compiti_testo(lista_prossimi),
+            },
+        },
+        f'sensor.compitapp_{slug}_assenze': {
+            'state': stats.get('assenze_totali', 0),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Assenze',
+                'icon': 'mdi:account-off',
+            },
+        },
+        f'sensor.compitapp_{slug}_bacheca': {
+            'state': stats.get('bacheca_non_lette', 0),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Bacheca',
+                'icon': 'mdi:bulletin-board',
+            },
+        },
+        f'sensor.compitapp_{slug}_ultimo_voto': {
+            'state': stats.get('ultimo_voto', 'N/D'),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Ultimo voto',
+                'materia': stats.get('ultima_materia', ''),
+                'icon': 'mdi:star',
+            },
+        },
+        f'sensor.compitapp_{slug}_media_voti': {
+            'state': stats.get('media_voti', 'N/D'),
+            'attributes': {
+                'friendly_name': f'CompitAPP {nome} - Media voti',
+                'icon': 'mdi:chart-line',
+            },
+        },
     }
     for entity_id, payload in sensori.items():
         try:
