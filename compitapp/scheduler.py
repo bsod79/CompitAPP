@@ -315,7 +315,10 @@ def _aggiorna_sensori(nome):
         oggi = oggi_d.strftime('%Y-%m-%d')
         domani_d = oggi_d + timedelta(days=1)
         domani = domani_d.strftime('%Y-%m-%d')
-        prossimi_a_d = oggi_d + timedelta(days=GIORNI_COMPITI_PROSSIMI)
+        # Prossimi = da dopodomani in poi (senza sovrapporsi a compiti_domani), per N giorni
+        dopodomani_d = oggi_d + timedelta(days=2)
+        dopodomani = dopodomani_d.strftime('%Y-%m-%d')
+        prossimi_a_d = dopodomani_d + timedelta(days=GIORNI_COMPITI_PROSSIMI - 1)
         prossimi_a = prossimi_a_d.strftime('%Y-%m-%d')
         conn = get_db()
         n_oggi   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, oggi)).fetchone()['n']
@@ -325,7 +328,7 @@ def _aggiorna_sensori(nome):
         ).fetchall()
         rows_prossimi = conn.execute(
             'SELECT data, materia, testo FROM compiti WHERE studente=? AND data>=? AND data<=? ORDER BY data, materia',
-            (nome, domani, prossimi_a)
+            (nome, dopodomani, prossimi_a)
         ).fetchall()
         n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
         n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND notificato=0', (nome,)).fetchone()['n']
@@ -347,7 +350,7 @@ def _aggiorna_sensori(nome):
             'compiti_prossimi': len(lista_prossimi),
             'giorni_compiti_prossimi': GIORNI_COMPITI_PROSSIMI,
             'data_domani': domani,
-            'data_prossimi_da': domani,
+            'data_prossimi_da': dopodomani,
             'data_prossimi_a': prossimi_a,
             'lista_compiti_domani': lista_domani,
             'lista_compiti_prossimi': lista_prossimi,

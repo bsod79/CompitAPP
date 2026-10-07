@@ -1,9 +1,13 @@
 # Changelog
 
+## 1.0.10
+
+- **`_compiti_prossimi` senza sovrapposizione**: include solo i compiti da **dopodomani** ai 3 giorni successivi (domani resta solo su `_compiti_domani`).
+
 ## 1.0.9
 
 - **Sensori compiti con testo**: `sensor.compitapp_<nome>_compiti_domani` espone anche gli attributi `data`, `lista` e `testo` (non solo il conteggio), così puoi usarli in automazioni Home Assistant (es. mail).
-- **Nuovo sensore** `sensor.compitapp_<nome>_compiti_prossimi`: compiti da domani ai prossimi 3 giorni, con attributi `giorni`, `da`, `a`, `lista` e `testo` raggruppato per data.
+- **Nuovo sensore** `sensor.compitapp_<nome>_compiti_prossimi`: compiti da dopodomani ai prossimi 3 giorni, con attributi `giorni`, `da`, `a`, `lista` e `testo` raggruppato per data.
 
 ## 1.0.8
 
