@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -17,6 +18,22 @@ TZ = pytz.timezone('Europe/Rome')
 ORARIO_REMINDER = os.environ.get('ORARIO_REMINDER', '20:00')
 POLLING_MINUTI = int(os.environ.get('POLLING_MINUTI', 30))
 
+@contextmanager
+def _db():
+    """Apre e chiude sempre la connessione SQLite (anche in caso di errore)."""
+    conn = get_db()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+
 def _esiste(conn, tabella, studente, **kwargs):
     where = ' AND '.join([f"{k}=?" for k in kwargs.keys()])
     vals = [studente] + list(kwargs.values())
@@ -32,26 +49,24 @@ def sync_compiti():
             compiti_raw = fetch_compiti(studente)
             if not compiti_raw:
                 continue
-            conn = get_db()
             nuovi = {}
             tot_trovati = 0
-            for data_str, info in compiti_raw.items():
-                for materia, testo in zip(info.get('materie',[]), info.get('compiti',[])):
-                    testo_clean = testo.strip()
-                    tot_trovati += 1
-                    if not _esiste(conn, 'compiti', nome, data=data_str, materia=materia, testo=testo_clean[:500]):
-                        conn.execute('INSERT INTO compiti (studente,data,materia,testo) VALUES (?,?,?,?)',
-                                     (nome, data_str, materia, testo_clean[:1000]))
-                        print(f"[SCHEDULER] 🆕 Nuovo compito {nome}: {materia} per {data_str}")
-                        try:
-                            if datetime.strptime(data_str, '%Y-%m-%d').date() >= date.today():
-                                nuovi.setdefault(data_str, {'materie':[], 'compiti':[]})
-                                nuovi[data_str]['materie'].append(materia)
-                                nuovi[data_str]['compiti'].append(testo_clean)
-                        except Exception:
-                            pass
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for data_str, info in compiti_raw.items():
+                    for materia, testo in zip(info.get('materie',[]), info.get('compiti',[])):
+                        testo_clean = testo.strip()
+                        tot_trovati += 1
+                        if not _esiste(conn, 'compiti', nome, data=data_str, materia=materia, testo=testo_clean[:500]):
+                            conn.execute('INSERT INTO compiti (studente,data,materia,testo) VALUES (?,?,?,?)',
+                                         (nome, data_str, materia, testo_clean[:1000]))
+                            print(f"[SCHEDULER] 🆕 Nuovo compito {nome}: {materia} per {data_str}")
+                            try:
+                                if datetime.strptime(data_str, '%Y-%m-%d').date() >= date.today():
+                                    nuovi.setdefault(data_str, {'materie':[], 'compiti':[]})
+                                    nuovi[data_str]['materie'].append(materia)
+                                    nuovi[data_str]['compiti'].append(testo_clean)
+                            except Exception:
+                                pass
             print(f"[SCHEDULER] Compiti {nome}: {tot_trovati} trovati, {sum(len(v['materie']) for v in nuovi.values())} nuovi")
             if nuovi:
                 notifica_nuovi_compiti(nome, nuovi)
@@ -69,19 +84,17 @@ def sync_voti():
             voti_raw = fetch_voti(studente)
             if not voti_raw:
                 continue
-            conn = get_db()
-            for v in voti_raw:
-                data_str = v.get('data','')
-                materia = v.get('materia','')
-                valore = str(v.get('voto',''))
-                desc = v.get('descrizione','')
-                if data_str and materia and valore:
-                    if not _esiste(conn, 'voti', nome, data=data_str, materia=materia, voto=valore):
-                        conn.execute('INSERT INTO voti (studente,data,materia,voto,descrizione) VALUES (?,?,?,?,?)',
-                                     (nome, data_str, materia, valore, desc))
-                        notifica_nuovo_voto(nome, materia, valore, desc)
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for v in voti_raw:
+                    data_str = v.get('data','')
+                    materia = v.get('materia','')
+                    valore = str(v.get('voto',''))
+                    desc = v.get('descrizione','')
+                    if data_str and materia and valore:
+                        if not _esiste(conn, 'voti', nome, data=data_str, materia=materia, voto=valore):
+                            conn.execute('INSERT INTO voti (studente,data,materia,voto,descrizione) VALUES (?,?,?,?,?)',
+                                         (nome, data_str, materia, valore, desc))
+                            notifica_nuovo_voto(nome, materia, valore, desc)
         except Exception as e:
             print(f"[SCHEDULER] Errore voti {nome}: {e}")
 
@@ -93,19 +106,17 @@ def sync_assenze():
             assenze_raw = fetch_assenze(studente)
             if not assenze_raw:
                 continue
-            conn = get_db()
-            for a in assenze_raw:
-                data_str = a.get('data','')
-                tipo = a.get('tipo','A')
-                desc = a.get('descrizione','')
-                giust = 1 if a.get('giustificata') else 0
-                if data_str and tipo:
-                    if not _esiste(conn, 'assenze', nome, data=data_str, tipo=tipo):
-                        conn.execute('INSERT INTO assenze (studente,data,tipo,descrizione,giustificata) VALUES (?,?,?,?,?)',
-                                     (nome, data_str, tipo, desc, giust))
-                        notifica_assenza(nome, data_str, tipo)
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for a in assenze_raw:
+                    data_str = a.get('data','')
+                    tipo = a.get('tipo','A')
+                    desc = a.get('descrizione','')
+                    giust = 1 if a.get('giustificata') else 0
+                    if data_str and tipo:
+                        if not _esiste(conn, 'assenze', nome, data=data_str, tipo=tipo):
+                            conn.execute('INSERT INTO assenze (studente,data,tipo,descrizione,giustificata) VALUES (?,?,?,?,?)',
+                                         (nome, data_str, tipo, desc, giust))
+                            notifica_assenza(nome, data_str, tipo)
         except Exception as e:
             print(f"[SCHEDULER] Errore assenze {nome}: {e}")
 
@@ -116,18 +127,16 @@ def sync_note():
             note_raw = fetch_note(studente)
             if not note_raw:
                 continue
-            conn = get_db()
-            for n in note_raw:
-                data_str = n.get('data','')
-                testo = n.get('testo','')
-                docente = n.get('docente','')
-                if data_str and testo:
-                    if not _esiste(conn, 'note_disciplinari', nome, data=data_str, testo=testo[:200]):
-                        conn.execute('INSERT INTO note_disciplinari (studente,data,docente,testo) VALUES (?,?,?,?)',
-                                     (nome, data_str, docente, testo))
-                        notifica_nota(nome, data_str, docente, testo)
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for n in note_raw:
+                    data_str = n.get('data','')
+                    testo = n.get('testo','')
+                    docente = n.get('docente','')
+                    if data_str and testo:
+                        if not _esiste(conn, 'note_disciplinari', nome, data=data_str, testo=testo[:200]):
+                            conn.execute('INSERT INTO note_disciplinari (studente,data,docente,testo) VALUES (?,?,?,?)',
+                                         (nome, data_str, docente, testo))
+                            notifica_nota(nome, data_str, docente, testo)
         except Exception as e:
             print(f"[SCHEDULER] Errore note {nome}: {e}")
 
@@ -139,26 +148,24 @@ def sync_bacheca():
             bacheca_raw = fetch_bacheca(studente)
             if not bacheca_raw:
                 continue
-            conn = get_db()
-            for msg in bacheca_raw:
-                uid = msg.get('uid','')
-                titolo = msg.get('titolo','')
-                testo = msg.get('testo','')
-                mittente = msg.get('mittente','')
-                data_str = msg.get('data','')
-                if titolo:
-                    # Usa uid come chiave univoca se disponibile, altrimenti titolo+data
-                    exists = False
-                    if uid:
-                        exists = conn.execute('SELECT id FROM bacheca WHERE uid=?', (uid,)).fetchone() is not None
-                    else:
-                        exists = _esiste(conn, 'bacheca', nome, titolo=titolo[:200], data=data_str)
-                    if not exists:
-                        conn.execute('INSERT INTO bacheca (studente,data,titolo,testo,mittente,uid) VALUES (?,?,?,?,?,?)',
-                                     (nome, data_str, titolo[:500], testo[:2000], mittente, uid))
-                        notifica_bacheca(nome, titolo, testo, mittente)
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for msg in bacheca_raw:
+                    uid = msg.get('uid','')
+                    titolo = msg.get('titolo','')
+                    testo = msg.get('testo','')
+                    mittente = msg.get('mittente','')
+                    data_str = msg.get('data','')
+                    if titolo:
+                        # Usa uid come chiave univoca se disponibile, altrimenti titolo+data
+                        exists = False
+                        if uid:
+                            exists = conn.execute('SELECT id FROM bacheca WHERE uid=?', (uid,)).fetchone() is not None
+                        else:
+                            exists = _esiste(conn, 'bacheca', nome, titolo=titolo[:200], data=data_str)
+                        if not exists:
+                            conn.execute('INSERT INTO bacheca (studente,data,titolo,testo,mittente,uid) VALUES (?,?,?,?,?,?)',
+                                         (nome, data_str, titolo[:500], testo[:2000], mittente, uid))
+                            notifica_bacheca(nome, titolo, testo, mittente)
         except Exception as e:
             print(f"[SCHEDULER] Errore bacheca {nome}: {e}")
 
@@ -169,18 +176,16 @@ def sync_argomenti():
             args_raw = fetch_argomenti(studente)
             if not args_raw:
                 continue
-            conn = get_db()
-            for a in args_raw:
-                data_str = a.get('data','')
-                materia = a.get('materia','')
-                argomento = a.get('argomento','')
-                attivita = a.get('attivita','')
-                if data_str and (argomento or attivita):
-                    if not _esiste(conn, 'argomenti', nome, data=data_str, materia=materia, argomento=argomento[:200]):
-                        conn.execute('INSERT INTO argomenti (studente,data,materia,argomento,attivita) VALUES (?,?,?,?,?)',
-                                     (nome, data_str, materia, argomento[:500], attivita[:500]))
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for a in args_raw:
+                    data_str = a.get('data','')
+                    materia = a.get('materia','')
+                    argomento = a.get('argomento','')
+                    attivita = a.get('attivita','')
+                    if data_str and (argomento or attivita):
+                        if not _esiste(conn, 'argomenti', nome, data=data_str, materia=materia, argomento=argomento[:200]):
+                            conn.execute('INSERT INTO argomenti (studente,data,materia,argomento,attivita) VALUES (?,?,?,?,?)',
+                                         (nome, data_str, materia, argomento[:500], attivita[:500]))
         except Exception as e:
             print(f"[SCHEDULER] Errore argomenti {nome}: {e}")
 
@@ -191,18 +196,16 @@ def sync_promemoria():
             prom_raw = fetch_promemoria(studente)
             if not prom_raw:
                 continue
-            conn = get_db()
-            for p in prom_raw:
-                data_str = p.get('data','')
-                testo = p.get('testo','')
-                docente = p.get('docente','')
-                if data_str and testo:
-                    if not _esiste(conn, 'promemoria', nome, data=data_str, testo=testo[:200]):
-                        conn.execute('INSERT INTO promemoria (studente,data,testo,docente) VALUES (?,?,?,?)',
-                                     (nome, data_str, testo[:500], docente))
-                        notifica_promemoria(nome, data_str, docente, testo)
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                for p in prom_raw:
+                    data_str = p.get('data','')
+                    testo = p.get('testo','')
+                    docente = p.get('docente','')
+                    if data_str and testo:
+                        if not _esiste(conn, 'promemoria', nome, data=data_str, testo=testo[:200]):
+                            conn.execute('INSERT INTO promemoria (studente,data,testo,docente) VALUES (?,?,?,?)',
+                                         (nome, data_str, testo[:500], docente))
+                            notifica_promemoria(nome, data_str, docente, testo)
         except Exception as e:
             print(f"[SCHEDULER] Errore promemoria {nome}: {e}")
 
@@ -231,11 +234,10 @@ def sync_orario():
     for studente in get_studenti():
         nome = studente.get('nome', 'Studente')
         try:
-            conn = get_db()
-            ultimo = conn.execute(
-                "SELECT MAX(aggiornato_il) AS t FROM orario WHERE studente=?", (nome,)
-            ).fetchone()['t']
-            conn.close()
+            with _db() as conn:
+                ultimo = conn.execute(
+                    "SELECT MAX(aggiornato_il) AS t FROM orario WHERE studente=?", (nome,)
+                ).fetchone()['t']
             if ultimo:
                 try:
                     if datetime.now() - datetime.strptime(ultimo, '%Y-%m-%d %H:%M:%S') < timedelta(hours=1):
@@ -244,13 +246,11 @@ def sync_orario():
                     pass
             registro = fetch_registro(studente)
             date_viste = sorted({str(r.get('datGiorno'))[:10] for r in registro if r.get('datGiorno')})
-            conn = get_db()
-            nuove = _archivia_lezioni(conn, nome, registro)
-            conn.commit()
-            storico = conn.execute(
-                'SELECT data, ora, materia, docente FROM lezioni_registro WHERE studente=?', (nome,)
-            ).fetchall()
-            conn.close()
+            with _db() as conn:
+                nuove = _archivia_lezioni(conn, nome, registro)
+                storico = conn.execute(
+                    'SELECT data, ora, materia, docente FROM lezioni_registro WHERE studente=?', (nome,)
+                ).fetchall()
             print(f"[SCHEDULER] Registro {nome}: {len(registro)} righe su {len(date_viste)} giorni "
                   f"({date_viste[0] if date_viste else '-'} → {date_viste[-1] if date_viste else '-'}), "
                   f"{nuove} lezioni nuove in archivio, {len(storico)} totali")
@@ -260,14 +260,12 @@ def sync_orario():
             if not slot:
                 print(f"[SCHEDULER] Orario {nome}: nessuna lezione utile, tengo quello salvato")
                 continue
-            conn = get_db()
-            conn.execute('DELETE FROM orario WHERE studente=?', (nome,))
-            conn.executemany(
-                'INSERT INTO orario (studente,giorno,ora,materia,docente) VALUES (?,?,?,?,?)',
-                [(nome, s['giorno'], s['ora'], s['materia'], s['docente']) for s in slot]
-            )
-            conn.commit()
-            conn.close()
+            with _db() as conn:
+                conn.execute('DELETE FROM orario WHERE studente=?', (nome,))
+                conn.executemany(
+                    'INSERT INTO orario (studente,giorno,ora,materia,docente) VALUES (?,?,?,?,?)',
+                    [(nome, s['giorno'], s['ora'], s['materia'], s['docente']) for s in slot]
+                )
             giorni_ok = sorted({s['giorno'] for s in slot})
             print(f"[SCHEDULER] Orario {nome}: {len(slot)} ore su {len(giorni_ok)} giorni della settimana")
         except Exception as e:
@@ -297,13 +295,12 @@ def reminder_sera():
     for studente in get_studenti():
         nome = studente.get('nome', 'Studente')
         try:
-            conn = get_db()
-            rows = conn.execute('SELECT materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, domani)).fetchall()
-            domani_scuola = domani_data.weekday() in _giorni_scuola(conn, nome)
-            orario_domani = [(r['ora'], r['materia']) for r in conn.execute(
-                'SELECT ora, materia FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
-                (nome, domani_data.weekday())).fetchall()]
-            conn.close()
+            with _db() as conn:
+                rows = conn.execute('SELECT materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia', (nome, domani)).fetchall()
+                domani_scuola = domani_data.weekday() in _giorni_scuola(conn, nome)
+                orario_domani = [(r['ora'], r['materia']) for r in conn.execute(
+                    'SELECT ora, materia FROM orario WHERE studente=? AND giorno=? ORDER BY ora',
+                    (nome, domani_data.weekday())).fetchall()]
             compiti_domani = {'materie':[r['materia'] for r in rows], 'compiti':[r['testo'] for r in rows]} if rows else None
             reminder_compiti_domani(nome, compiti_domani, domani_scuola=domani_scuola, orario_domani=orario_domani)
         except Exception as e:
@@ -320,21 +317,20 @@ def _aggiorna_sensori(nome):
         dopodomani = dopodomani_d.strftime('%Y-%m-%d')
         prossimi_a_d = dopodomani_d + timedelta(days=GIORNI_COMPITI_PROSSIMI - 1)
         prossimi_a = prossimi_a_d.strftime('%Y-%m-%d')
-        conn = get_db()
-        n_oggi   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, oggi)).fetchone()['n']
-        rows_domani = conn.execute(
-            'SELECT data, materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia',
-            (nome, domani)
-        ).fetchall()
-        rows_prossimi = conn.execute(
-            'SELECT data, materia, testo FROM compiti WHERE studente=? AND data>=? AND data<=? ORDER BY data, materia',
-            (nome, dopodomani, prossimi_a)
-        ).fetchall()
-        n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
-        n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND notificato=0', (nome,)).fetchone()['n']
-        ultimo_voto = conn.execute('SELECT voto, materia FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 1', (nome,)).fetchone()
-        tutti_voti = conn.execute('SELECT voto FROM voti WHERE studente=?', (nome,)).fetchall()
-        conn.close()
+        with _db() as conn:
+            n_oggi   = conn.execute('SELECT COUNT(*) as n FROM compiti WHERE studente=? AND data=?', (nome, oggi)).fetchone()['n']
+            rows_domani = conn.execute(
+                'SELECT data, materia, testo FROM compiti WHERE studente=? AND data=? ORDER BY materia',
+                (nome, domani)
+            ).fetchall()
+            rows_prossimi = conn.execute(
+                'SELECT data, materia, testo FROM compiti WHERE studente=? AND data>=? AND data<=? ORDER BY data, materia',
+                (nome, dopodomani, prossimi_a)
+            ).fetchall()
+            n_assenze = conn.execute('SELECT COUNT(*) as n FROM assenze WHERE studente=?', (nome,)).fetchone()['n']
+            n_bacheca = conn.execute('SELECT COUNT(*) as n FROM bacheca WHERE studente=? AND notificato=0', (nome,)).fetchone()['n']
+            ultimo_voto = conn.execute('SELECT voto, materia FROM voti WHERE studente=? ORDER BY data DESC, id DESC LIMIT 1', (nome,)).fetchone()
+            tutti_voti = conn.execute('SELECT voto FROM voti WHERE studente=?', (nome,)).fetchall()
         valori = []
         for v in tutti_voti:
             try:
@@ -371,13 +367,20 @@ def heartbeat():
 
 def avvia_scheduler():
     scheduler = BackgroundScheduler(timezone=TZ)
-    scheduler.add_job(sync_tutto, 'interval', minutes=POLLING_MINUTI, id='sync_tutto')
-    scheduler.add_job(heartbeat, 'interval', minutes=5, id='heartbeat')
+    job_defaults = {
+        'max_instances': 1,   # niente sync sovrapposte
+        'coalesce': True,     # se in ritardo, esegui una sola volta
+        'misfire_grace_time': 300,
+    }
+    scheduler.add_job(sync_tutto, 'interval', minutes=POLLING_MINUTI, id='sync_tutto', **job_defaults)
+    scheduler.add_job(heartbeat, 'interval', minutes=5, id='heartbeat', **job_defaults)
     try:
         ora, minuto = ORARIO_REMINDER.split(':')
-        scheduler.add_job(reminder_sera, CronTrigger(hour=int(ora), minute=int(minuto)), id='reminder_sera')
+        scheduler.add_job(reminder_sera, CronTrigger(hour=int(ora), minute=int(minuto)),
+                          id='reminder_sera', **job_defaults)
     except Exception:
-        scheduler.add_job(reminder_sera, CronTrigger(hour=20, minute=0), id='reminder_sera')
+        scheduler.add_job(reminder_sera, CronTrigger(hour=20, minute=0),
+                          id='reminder_sera', **job_defaults)
     scheduler.start()
     print(f"[SCHEDULER] Avviato — polling ogni {POLLING_MINUTI} min, reminder alle {ORARIO_REMINDER}")
     sync_tutto()

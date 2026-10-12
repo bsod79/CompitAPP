@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from argofamiglia import ArgoFamiglia
 
 def get_studenti():
@@ -12,6 +13,9 @@ def get_studenti():
         return []
 
 _sessions = {}
+# Una sync chiama la dashboard molte volte: cache breve = 1 richiesta Argo per ciclo
+_dashboard_cache = {}
+_DASHBOARD_TTL_SEC = 90
 
 def get_session(studente):
     nome = studente.get('nome', 'default')
@@ -32,10 +36,16 @@ def get_session(studente):
 
 def _reset_session(nome):
     _sessions.pop(nome, None)
+    _dashboard_cache.pop(nome, None)
 
 def fetch_dashboard(studente):
-    """Recupera tutti i dati in una sola chiamata — con retry automatico"""
+    """Recupera tutti i dati in una sola chiamata — con retry automatico e cache breve."""
     nome = studente.get('nome', 'default')
+    cached = _dashboard_cache.get(nome)
+    if cached:
+        ts, data = cached
+        if time.monotonic() - ts < _DASHBOARD_TTL_SEC:
+            return data
     for tentativo in range(3):
         try:
             session = get_session(studente)
@@ -46,6 +56,8 @@ def fetch_dashboard(studente):
                 print(f"[ARGO] Risposta vuota dashboard {nome} — retry {tentativo+1}/3")
                 _reset_session(nome)
                 continue
+            if data is not None:
+                _dashboard_cache[nome] = (time.monotonic(), data)
             return data
         except ValueError as e:
             print(f"[ARGO] Sessione scaduta {nome} — rinnovo dashboard (tentativo {tentativo+1}/3)")

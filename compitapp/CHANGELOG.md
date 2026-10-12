@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- **Meno carico su Home Assistant e Argo**: la dashboard Argo viene richiesta una sola volta per ciclo di sync (cache 90s); i sensori HA si aggiornano solo se i dati sono cambiati.
+- **Connessioni SQLite chiuse sempre**, anche in caso di errore (niente handle aperti).
+- **Scheduler**: niente sync sovrapposte (`max_instances=1`, `coalesce`).
+
 ## 1.0.10
 
 - **`_compiti_prossimi` senza sovrapposizione**: include solo i compiti da **dopodomani** ai 3 giorni successivi (domani resta solo su `_compiti_domani`).

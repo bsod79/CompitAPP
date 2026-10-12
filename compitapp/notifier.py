@@ -1,9 +1,13 @@
 import os
 import json
+import hashlib
 import html
 import requests
 from datetime import date, datetime, timedelta
 from orario_utils import emoji_materia
+
+# Evita di riscrivere i sensori HA se il payload non è cambiato (meno carico su recorder)
+_last_sensor_digest = {}
 
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_IDS_RAW = os.environ.get('TELEGRAM_CHAT_IDS', '')
@@ -267,6 +271,13 @@ def sync_sensori_ha(nome, stats):
             },
         },
     }
+    digest = hashlib.md5(
+        json.dumps(sensori, sort_keys=True, default=str, ensure_ascii=False).encode('utf-8')
+    ).hexdigest()
+    if _last_sensor_digest.get(slug) == digest:
+        return
+    _last_sensor_digest[slug] = digest
+
     for entity_id, payload in sensori.items():
         try:
             requests.post(f'{base}/{entity_id}', json=payload, headers=headers, timeout=5)
